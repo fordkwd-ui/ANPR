@@ -1,9 +1,6 @@
 {
   "name": "anpr-root",
   "private": true,
-  "workspaces": [
-    "frontend"
-  ],
   "scripts": {
     "dev": "npm --prefix frontend run dev",
     "build": "npm --prefix frontend install && npm --prefix frontend run build && cp -r frontend/dist ./dist",
