@@ -4,8 +4,8 @@
     admin off
 }
 
-# Production domain with automated Let's Encrypt SSL & IP fallback
-http://139.59.19.128, 139.59.19.128.sslip.io {
+# Common reverse proxy rules for ANPR Gate API & React Frontend
+(anpr_common) {
     encode gzip zstd
 
     # WebSocket Live Event Stream
@@ -41,9 +41,18 @@ http://139.59.19.128, 139.59.19.128.sslip.io {
 
     # Security headers
     header {
-        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
         X-Content-Type-Options "nosniff"
         X-Frame-Options "DENY"
         Referrer-Policy "strict-origin-when-cross-origin"
     }
+}
+
+# 1. Automated HTTPS with Let's Encrypt / ZeroSSL on Wildcard DNS domains
+139.59.19.128.nip.io, 139.59.19.128.sslip.io {
+    import anpr_common
+}
+
+# 2. Instant Direct HTTP access on Droplet IP
+http://139.59.19.128 {
+    import anpr_common
 }
