@@ -1,19 +1,17 @@
 # Caddy production reverse proxy configuration for Forest Gate Cloud Backend
 {
-    email admin@forestgate.internal
+    email mohitbaghel0202@gmail.com
     admin off
 }
 
-# Production domain / IP reverse proxy
-:80, :443 {
+# Production domain with automated Let's Encrypt SSL & IP fallback
+http://139.59.19.128, 139.59.19.128.sslip.io {
     encode gzip zstd
 
     # WebSocket Live Event Stream
-    @websockets {
-        header Connection *Upgrade*
-        header Upgrade websocket
+    handle /ws/* {
+        reverse_proxy api:8000
     }
-    reverse_proxy @websockets api:8000
 
     # API endpoints & OpenAPI documentation
     handle /api/* {
