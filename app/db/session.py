@@ -9,14 +9,35 @@ from sqlalchemy.ext.asyncio import (
 from app.config import get_settings
 
 
+import urllib.parse
+
+
 def get_async_database_url(url: str) -> str:
-    """Normalizes database URL to use async drivers."""
+    """Normalizes database URL to use async drivers and cleans asyncpg-incompatible query parameters."""
     if url.startswith("postgresql://"):
-        return url.replace("postgresql://", "postgresql+asyncpg://", 1)
-    if url.startswith("postgres://"):
-        return url.replace("postgres://", "postgresql+asyncpg://", 1)
-    if url.startswith("sqlite://") and not url.startswith("sqlite+aiosqlite://"):
-        return url.replace("sqlite://", "sqlite+aiosqlite://", 1)
+        url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    elif url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+    elif url.startswith("sqlite://") and not url.startswith("sqlite+aiosqlite://"):
+        url = url.replace("sqlite://", "sqlite+aiosqlite://", 1)
+
+    if "postgresql+asyncpg://" in url and "?" in url:
+        base_url, query_str = url.split("?", 1)
+        params = urllib.parse.parse_qs(query_str)
+        # asyncpg does not accept psycopg2-specific parameters like 'sslmode' or 'channel_binding'
+        new_params = {}
+        for k, v in params.items():
+            if k == "sslmode":
+                new_params["ssl"] = v[0]
+            elif k in ("channel_binding",):
+                continue
+            else:
+                new_params[k] = v[0]
+        if "ssl" not in new_params and "sslmode" in query_str:
+            new_params["ssl"] = "require"
+        new_query = urllib.parse.urlencode(new_params)
+        url = f"{base_url}?{new_query}" if new_query else base_url
+
     return url
 
 

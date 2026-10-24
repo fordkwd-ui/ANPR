@@ -15,14 +15,12 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 
+from app.db.session import get_async_database_url
+
+
 def get_url():
     settings = get_settings()
-    url = settings.DATABASE_URL
-    if url.startswith("postgresql://"):
-        url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
-    if url.startswith("postgres://"):
-        url = url.replace("postgres://", "postgresql+asyncpg://", 1)
-    return url
+    return get_async_database_url(settings.DATABASE_URL)
 
 
 def run_migrations_offline() -> None:
