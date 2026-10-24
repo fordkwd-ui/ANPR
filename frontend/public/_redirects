@@ -1,3 +1,0 @@
-# Cloudflare Pages SPA rewrite rule
-/api/*  http://139.59.19.128/api/:splat  200
-/*      /index.html                       200
