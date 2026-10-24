@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "dev": "npm --prefix frontend run dev",
-    "build": "npm --prefix frontend install && npm --prefix frontend run build && rm -rf ./dist && cp -r frontend/dist ./dist",
+    "build": "npm --prefix frontend install && npm --prefix frontend run build && rm -rf ./dist && cp -r frontend/dist ./dist && rm -f ./dist/_worker.js && printf '_worker.js\\n_routes.json\\n_headers\\n_redirects\\n' > ./dist/.assetsignore",
     "lint": "npm --prefix frontend run lint",
     "preview": "npm --prefix frontend run preview"
   }
