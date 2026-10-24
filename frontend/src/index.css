@@ -2335,3 +2335,119 @@ body {
 .gov-role-pill.reviewer { background: #DCFCE7; color: #166534; }
 .gov-role-pill.viewer { background: #E0F2FE; color: #075985; }
 
+/* ==========================================================================
+   MOBILE CAMERA & REAL-TIME PHOTO CAPTURE MODAL
+   ========================================================================== */
+.camera-viewfinder-box {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #0B0F19;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 1rem;
+}
+
+.camera-video-elem {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.camera-overlay-reticle {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.camera-target-box {
+  width: 65%;
+  height: 45%;
+  border: 2px dashed rgba(34, 197, 94, 0.7);
+  border-radius: var(--radius-xs);
+  box-shadow: 0 0 15px rgba(34, 197, 94, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #22C55E;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  background: rgba(34, 197, 94, 0.05);
+}
+
+.camera-shutter-bar {
+  position: absolute;
+  bottom: 1rem;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  pointer-events: auto;
+}
+
+.camera-shutter-btn {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  border: 4px solid #10B981;
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.5);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.camera-shutter-btn:active {
+  transform: scale(0.92);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.8);
+}
+
+.camera-shutter-inner {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #10B981;
+}
+
+.camera-upload-zone {
+  border: 2px dashed var(--gov-border-strong);
+  border-radius: var(--radius-sm);
+  padding: 1.5rem;
+  text-align: center;
+  cursor: pointer;
+  background: #F8FAFC;
+  transition: all 160ms ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.camera-upload-zone:hover {
+  background: #F1F5F9;
+  border-color: var(--forest-green-600);
+}
+
+.camera-preview-img {
+  width: 100%;
+  max-height: 280px;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--gov-border-subtle);
+  background: #000;
+}
+
+

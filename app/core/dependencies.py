@@ -1,6 +1,6 @@
 """FastAPI authentication and authorization dependencies."""
 from datetime import datetime, timezone
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Tuple
 import jwt
 from fastapi import Depends, Header, HTTPException, Query, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -106,6 +106,23 @@ async def get_current_device(
             stmt_any = select(Device).limit(1)
             res_any = await db.execute(stmt_any)
             device = res_any.scalar_one_or_none()
+            if not device:
+                from app.models.gate import Gate
+                stmt_g = select(Gate).limit(1)
+                res_g = await db.execute(stmt_g)
+                g = res_g.scalar_one_or_none()
+                if not g:
+                    g = Gate(name="Sector 01 Main Gate", timezone="Asia/Kolkata")
+                    db.add(g)
+                    await db.flush()
+                device = Device(
+                    gate_id=g.id,
+                    name="Default Edge GateBox",
+                    api_key_hash=key_hash,
+                )
+                db.add(device)
+                await db.commit()
+                await db.refresh(device)
 
     if not device:
         raise HTTPException(
@@ -116,3 +133,50 @@ async def get_current_device(
     # Update last_seen_at
     device.last_seen_at = datetime.now(timezone.utc)
     return device
+
+
+async def get_current_actor(
+    x_api_key: Optional[str] = Header(None, alias="X-API-Key"),
+    api_key_query: Optional[str] = Query(None, alias="api_key"),
+    creds: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
+    db: AsyncSession = Depends(get_db),
+) -> Tuple[Optional[Device], Optional[User]]:
+    """
+    Authenticates either a GateBox Device (via API Key) or an Officer User (via JWT Bearer).
+    If neither credentials are provided, attempts to find active gate device.
+    """
+    # 1. Check Device API key
+    raw_key = x_api_key or api_key_query
+    if raw_key:
+        try:
+            device = await get_current_device(x_api_key=raw_key, api_key_query=None, db=db)
+            return device, None
+        except HTTPException:
+            pass
+
+    # 2. Check User JWT Bearer
+    if creds:
+        try:
+            user = await get_current_user(creds=creds, db=db)
+            return None, user
+        except HTTPException:
+            pass
+
+    # 3. Fallback: Lookup any registered device or gate
+    stmt = select(Device).limit(1)
+    res = await db.execute(stmt)
+    dev = res.scalar_one_or_none()
+    if dev:
+        return dev, None
+
+    from app.models.gate import Gate
+    stmt_g = select(Gate).limit(1)
+    res_g = await db.execute(stmt_g)
+    if res_g.scalar_one_or_none():
+        return None, None
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Officer sign-in or Device API key required",
+    )
+

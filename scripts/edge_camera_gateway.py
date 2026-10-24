@@ -22,6 +22,7 @@ import datetime
 import io
 import json
 import os
+import re
 import sys
 import time
 import uuid
@@ -408,35 +409,61 @@ HUD_IGNORE = {"FOREST", "GATE", "TRACKER", "STOPPED", "ACTIVE", "PASS", "LAG", "
 
 
 def _exec_apple_vision_ocr(image_bgr):
-    """Executes on-device Apple Vision text recognition on an image (BGR)."""
+    """Executes on-device Apple Vision text recognition on an image (BGR) with cross-platform fallback."""
     import cv2
-    import Vision, Quartz, Cocoa
-    h, w = image_bgr.shape[:2]
-    _, buf = cv2.imencode(".jpg", image_bgr)
-    jpeg_bytes = buf.tobytes()
-    data = Cocoa.NSData.dataWithBytes_length_(jpeg_bytes, len(jpeg_bytes))
-    image_source = Quartz.CGImageSourceCreateWithData(data, None)
-    cg_image = Quartz.CGImageSourceCreateImageAtIndex(image_source, 0, None)
+    try:
+        import Vision, Quartz, Cocoa
+        h, w = image_bgr.shape[:2]
+        _, buf = cv2.imencode(".jpg", image_bgr)
+        jpeg_bytes = buf.tobytes()
+        data = Cocoa.NSData.dataWithBytes_length_(jpeg_bytes, len(jpeg_bytes))
+        image_source = Quartz.CGImageSourceCreateWithData(data, None)
+        cg_image = Quartz.CGImageSourceCreateImageAtIndex(image_source, 0, None)
 
-    request = Vision.VNRecognizeTextRequest.alloc().init()
-    request.setRecognitionLevel_(Vision.VNRequestTextRecognitionLevelAccurate)
-    request.setUsesLanguageCorrection_(False)
+        request = Vision.VNRecognizeTextRequest.alloc().init()
+        request.setRecognitionLevel_(Vision.VNRequestTextRecognitionLevelAccurate)
+        request.setUsesLanguageCorrection_(False)
 
-    handler = Vision.VNImageRequestHandler.alloc().initWithCGImage_options_(cg_image, None)
-    handler.performRequests_error_([request], None)
+        handler = Vision.VNImageRequestHandler.alloc().initWithCGImage_options_(cg_image, None)
+        handler.performRequests_error_([request], None)
 
-    results = []
-    for observation in request.results():
-        top = observation.topCandidates_(1)[0]
-        text_str = top.string().strip().upper()
-        conf = float(top.confidence())
-        bbox = observation.boundingBox()
-        bx = int(bbox.origin.x * w)
-        by = int((1.0 - bbox.origin.y - bbox.size.height) * h)
-        bw = int(bbox.size.width * w)
-        bh = int(bbox.size.height * h)
-        results.append((text_str, conf, (bx, by, bx + bw, by + bh)))
-    return results
+        results = []
+        for observation in request.results():
+            top = observation.topCandidates_(1)[0]
+            text_str = top.string().strip().upper()
+            conf = float(top.confidence())
+            bbox = observation.boundingBox()
+            bx = int(bbox.origin.x * w)
+            by = int((1.0 - bbox.origin.y - bbox.size.height) * h)
+            bw = int(bbox.size.width * w)
+            bh = int(bbox.size.height * h)
+            results.append((text_str, conf, (bx, by, bx + bw, by + bh)))
+        return results
+    except Exception:
+        # Cross-platform fallback: try tesseract or return empty list
+        try:
+            import pytesseract
+            from PIL import Image
+            rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
+            pil_img = Image.fromarray(rgb)
+            data = pytesseract.image_to_data(pil_img, output_type=pytesseract.Output.DICT)
+            results = []
+            for i in range(len(data["text"])):
+                t = str(data["text"][i]).strip().upper()
+                if not t:
+                    continue
+                try:
+                    c = float(data["conf"][i]) / 100.0
+                except Exception:
+                    c = 0.80
+                bx = data["left"][i]
+                by = data["top"][i]
+                bw = data["width"][i]
+                bh = data["height"][i]
+                results.append((t, c, (bx, by, bx + bw, by + bh)))
+            return results
+        except Exception:
+            return []
 
 
 def run_real_anpr_ocr(frame_bgr, roi_hint: Optional[Tuple[int, int, int, int]] = None):

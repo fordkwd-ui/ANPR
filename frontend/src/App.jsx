@@ -38,6 +38,7 @@ import {
   Users,
   UserPlus,
   ShieldAlert,
+  Upload,
 } from 'lucide-react';
 import { ScheduleDate } from './components/ScheduleDate';
 import { Pagination5 } from './components/Pagination5';
@@ -125,6 +126,21 @@ export default function App() {
   const [usersList, setUsersList] = useState([]);
   const [newUserForm, setNewUserForm] = useState({ username: '', password: '', role: 'reviewer' });
   const [userFormError, setUserFormError] = useState('');
+
+  // Mobile & Live Camera Capture Modal State
+  const [showCaptureModal, setShowCaptureModal] = useState(false);
+  const [capturePhotoFile, setCapturePhotoFile] = useState(null);
+  const [capturePhotoPreview, setCapturePhotoPreview] = useState(null);
+  const [captureCargoFile, setCaptureCargoFile] = useState(null);
+  const [capturePlate, setCapturePlate] = useState('');
+  const [captureVehicleType, setCaptureVehicleType] = useState('car');
+  const [captureLoadType, setCaptureLoadType] = useState('empty');
+  const [captureColor, setCaptureColor] = useState('white');
+  const [isCapturing, setIsCapturing] = useState(false);
+  const [cameraStreamActive, setCameraStreamActive] = useState(false);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   // Primary Navigation Tab: 'live_24h' (Front Page) vs 'archives' (Second Page)
   const [activeTab, setActiveTab] = useState('live_24h');
@@ -517,6 +533,111 @@ export default function App() {
       }
     } catch (e) {
       alert('Could not clear register.');
+    }
+  };
+
+  // Camera & Mobile Capture Methods
+  const startLiveCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
+        audio: false,
+      });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play();
+        setCameraStreamActive(true);
+      }
+    } catch (err) {
+      console.warn('Direct mediaDevices camera not accessible:', err);
+      showToast('Live stream unavailable. Tap "Choose / Take Photo" below.');
+    }
+  };
+
+  const stopLiveCamera = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const tracks = videoRef.current.srcObject.getTracks();
+      tracks.forEach((track) => track.stop());
+      videoRef.current.srcObject = null;
+    }
+    setCameraStreamActive(false);
+  };
+
+  const snapFromLiveCamera = () => {
+    if (!videoRef.current || !canvasRef.current) return;
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob(
+      (blob) => {
+        if (blob) {
+          const file = new File([blob], 'mobile_snap.jpg', { type: 'image/jpeg' });
+          setCapturePhotoFile(file);
+          setCapturePhotoPreview(URL.createObjectURL(blob));
+          stopLiveCamera();
+        }
+      },
+      'image/jpeg',
+      0.92
+    );
+  };
+
+  const handleCaptureFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setCapturePhotoFile(file);
+      setCapturePhotoPreview(URL.createObjectURL(file));
+      stopLiveCamera();
+    }
+  };
+
+  const handleSubmitCapture = async (e) => {
+    e?.preventDefault();
+    if (!capturePhotoFile) {
+      alert('Please snap or select a vehicle photo first.');
+      return;
+    }
+    setIsCapturing(true);
+    try {
+      const formData = new FormData();
+      formData.append('photo', capturePhotoFile);
+      if (captureCargoFile) {
+        formData.append('cargo_photo', captureCargoFile);
+      }
+      if (capturePlate.trim()) {
+        formData.append('plate', capturePlate.trim());
+      }
+      formData.append('vehicle_type', captureVehicleType);
+      formData.append('vehicle_color', captureColor);
+      formData.append('load_type', captureLoadType);
+
+      const res = await fetch(`${API_BASE}/api/v1/events/capture`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      });
+
+      if (res.ok) {
+        const created = await res.json();
+        showToast(`✅ Pass #${created.day_serial} logged with 3 evidentiary photos!`);
+        setShowCaptureModal(false);
+        setCapturePhotoFile(null);
+        setCapturePhotoPreview(null);
+        setCaptureCargoFile(null);
+        setCapturePlate('');
+        stopLiveCamera();
+        fetchData();
+      } else {
+        const err = await res.json();
+        alert(err.detail || 'Could not process photo capture.');
+      }
+    } catch (err) {
+      alert('Network error while uploading photo.');
+    } finally {
+      setIsCapturing(false);
     }
   };
 
@@ -988,6 +1109,26 @@ export default function App() {
             onClick={() => setAudioEnabled(!audioEnabled)}
           >
             {audioEnabled ? <Volume2 size={15} color="var(--forest-green-700)" /> : <VolumeX size={15} color="var(--text-muted)" />}
+          </button>
+
+          <button
+            type="button"
+            className="btn-gov"
+            style={{
+              background: '#047857',
+              color: '#FFFFFF',
+              fontWeight: 700,
+              border: '1px solid #065F46',
+            }}
+            onClick={() => {
+              setShowCaptureModal(true);
+              setCapturePhotoFile(null);
+              setCapturePhotoPreview(null);
+            }}
+            title="Snap vehicle photo using mobile camera or upload evidence image"
+          >
+            <Camera size={14} />
+            <span>📸 Snap Photo</span>
           </button>
 
           <button
@@ -2518,6 +2659,224 @@ export default function App() {
                 </button>
                 <button type="submit" className="btn-gov primary">
                   Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* ====================================================================
+          MODAL: MOBILE CAMERA & REAL-TIME PHOTO CAPTURE
+          ==================================================================== */}
+      {showCaptureModal && (
+        <div className="gov-modal-backdrop" onClick={() => { stopLiveCamera(); setShowCaptureModal(false); }}>
+          <div className="gov-modal-box" style={{ maxWidth: '620px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="gov-modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Camera size={20} color="var(--forest-green-700)" />
+                <div>
+                  <h3 style={{ fontSize: '0.98rem', fontWeight: 700, color: '#0F172A', margin: 0 }}>
+                    Mobile Camera Vehicle Capture &amp; ANPR
+                  </h3>
+                  <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', margin: 0 }}>
+                    Snap a vehicle photo. System runs OCR, extracts crops, and saves all 3 evidence photos.
+                  </p>
+                </div>
+              </div>
+              <button className="btn-gov-icon" onClick={() => { stopLiveCamera(); setShowCaptureModal(false); }}>
+                <X size={16} />
+              </button>
+            </div>
+
+            <canvas ref={canvasRef} style={{ display: 'none' }} />
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              style={{ display: 'none' }}
+              onChange={handleCaptureFileSelect}
+            />
+
+            <form onSubmit={handleSubmitCapture}>
+              <div className="gov-modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+                {/* 1. Camera / Photo Viewport */}
+                {cameraStreamActive ? (
+                  <div className="camera-viewfinder-box">
+                    <video ref={videoRef} autoPlay playsInline muted className="camera-video-elem" />
+                    <div className="camera-overlay-reticle">
+                      <div className="camera-target-box">ALIGN NUMBER PLATE HERE</div>
+                    </div>
+                    <div className="camera-shutter-bar">
+                      <button
+                        type="button"
+                        className="camera-shutter-btn"
+                        onClick={snapFromLiveCamera}
+                        title="Take Instant Photo"
+                      >
+                        <div className="camera-shutter-inner" />
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-gov"
+                        style={{ background: '#1E293B', color: '#fff', fontSize: '0.75rem' }}
+                        onClick={stopLiveCamera}
+                      >
+                        Stop Live View
+                      </button>
+                    </div>
+                  </div>
+                ) : capturePhotoPreview ? (
+                  <div style={{ marginBottom: '1rem', textAlign: 'center' }}>
+                    <img src={capturePhotoPreview} alt="Captured Vehicle" className="camera-preview-img" />
+                    <div style={{ marginTop: '0.5rem', display: 'flex', justifyContent: 'center', gap: '0.5rem' }}>
+                      <button
+                        type="button"
+                        className="btn-gov"
+                        style={{ fontSize: '0.75rem' }}
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <Camera size={13} /> Retake with Phone Camera
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-gov"
+                        style={{ fontSize: '0.75rem' }}
+                        onClick={() => {
+                          setCapturePhotoFile(null);
+                          setCapturePhotoPreview(null);
+                        }}
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ marginBottom: '1rem' }}>
+                    <div className="camera-upload-zone" onClick={() => fileInputRef.current?.click()}>
+                      <Camera size={38} color="#047857" />
+                      <div style={{ fontWeight: 700, fontSize: '0.92rem', color: '#0F172A' }}>
+                        📸 Tap to Snap Photo with Mobile Camera
+                      </div>
+                      <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                        Opens your phone's camera instantly or choose from gallery
+                      </div>
+                      <span className="btn-gov" style={{ pointerEvents: 'none', marginTop: '0.25rem', fontSize: '0.76rem' }}>
+                        <Upload size={12} /> Select / Capture Photo
+                      </span>
+                    </div>
+
+                    <div style={{ textAlign: 'center', margin: '0.5rem 0', color: 'var(--text-muted)', fontSize: '0.72rem' }}>
+                      — OR —
+                    </div>
+
+                    <button
+                      type="button"
+                      className="btn-gov"
+                      style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', fontSize: '0.78rem' }}
+                      onClick={startLiveCamera}
+                    >
+                      <Video size={14} /> Open In-Browser Live Viewfinder
+                    </button>
+                  </div>
+                )}
+
+                {/* 2. Optional Metadata Form */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                      License Plate (Optional — auto-read by OCR)
+                    </label>
+                    <input
+                      type="text"
+                      className="gov-search-input"
+                      placeholder="e.g. CG 07 CU 8073"
+                      value={capturePlate}
+                      onChange={(e) => setCapturePlate(e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                      Vehicle Class
+                    </label>
+                    <select
+                      className="gov-search-input"
+                      value={captureVehicleType}
+                      onChange={(e) => setCaptureVehicleType(e.target.value)}
+                    >
+                      <option value="car">Car / SUV</option>
+                      <option value="motorcycle">Motorcycle / Two-Wheeler</option>
+                      <option value="truck">Truck / Heavy Carrier</option>
+                      <option value="bus">Bus</option>
+                      <option value="pickup">Pickup</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                      Vehicle Color
+                    </label>
+                    <select
+                      className="gov-search-input"
+                      value={captureColor}
+                      onChange={(e) => setCaptureColor(e.target.value)}
+                    >
+                      <option value="white">White</option>
+                      <option value="silver">Silver / Grey</option>
+                      <option value="black">Black</option>
+                      <option value="red">Red</option>
+                      <option value="yellow">Yellow</option>
+                      <option value="blue">Blue</option>
+                      <option value="brown">Brown</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                      Cargo Bed Classification
+                    </label>
+                    <select
+                      className="gov-search-input"
+                      value={captureLoadType}
+                      onChange={(e) => setCaptureLoadType(e.target.value)}
+                    >
+                      <option value="empty">Empty Bed</option>
+                      <option value="timber_logs">Timber / Logs</option>
+                      <option value="bamboo">Bamboo</option>
+                      <option value="sand">Sand</option>
+                      <option value="stone_gravel">Stone / Gravel</option>
+                      <option value="bags">Agricultural Bags</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="gov-modal-footer">
+                <button
+                  type="button"
+                  className="btn-gov"
+                  onClick={() => { stopLiveCamera(); setShowCaptureModal(false); }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-gov primary"
+                  disabled={!capturePhotoFile || isCapturing}
+                  style={{ minWidth: '170px' }}
+                >
+                  {isCapturing ? (
+                    <>
+                      <RefreshCw size={13} className="spin" />
+                      <span>Processing OCR &amp; Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check size={14} />
+                      <span>Process &amp; Save Pass</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>
