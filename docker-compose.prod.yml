@@ -5,6 +5,7 @@ services:
       dockerfile: Dockerfile
     container_name: anpr_api
     restart: unless-stopped
+    user: "0:0"
     ports:
       - "8000:8000"
     env_file:

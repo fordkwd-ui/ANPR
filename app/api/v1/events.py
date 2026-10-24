@@ -186,6 +186,7 @@ async def post_simulate_event(
                 kind=kind,
                 object_key=object_key,
                 bytes=bytes_saved,
+                created_at=datetime.now(timezone.utc),
             )
             db.add(media)
             saved_media = True
@@ -345,13 +346,27 @@ async def post_camera_push(
     # Save media if attached
     saved_kinds = []
     if plate_bytes:
-        path = await storage.save(plate_bytes, f"{detection.id}_plate.jpg")
-        media = Media(detection_id=detection.id, kind=MediaKind.PLATE, file_path=path, size_bytes=len(plate_bytes))
+        obj_key = f"detections/{detection.id}/plate.jpg"
+        bytes_saved = await storage.save_file(obj_key, plate_bytes, "image/jpeg")
+        media = Media(
+            detection_id=detection.id,
+            kind=MediaKind.PLATE,
+            object_key=obj_key,
+            bytes=bytes_saved,
+            created_at=now,
+        )
         db.add(media)
         saved_kinds.append("plate")
     if scene_bytes:
-        path = await storage.save(scene_bytes, f"{detection.id}_scene.jpg")
-        media = Media(detection_id=detection.id, kind=MediaKind.SCENE, file_path=path, size_bytes=len(scene_bytes))
+        obj_key = f"detections/{detection.id}/scene.jpg"
+        bytes_saved = await storage.save_file(obj_key, scene_bytes, "image/jpeg")
+        media = Media(
+            detection_id=detection.id,
+            kind=MediaKind.SCENE,
+            object_key=obj_key,
+            bytes=bytes_saved,
+            created_at=now,
+        )
         db.add(media)
         saved_kinds.append("scene")
 
@@ -450,6 +465,7 @@ async def upload_detection_media(
                         kind=kind,
                         object_key=object_key,
                         bytes=bytes_saved,
+                        created_at=now,
                     )
                     db.add(media_row)
                 saved_kinds.append(kind.value)
