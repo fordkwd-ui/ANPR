@@ -32,9 +32,12 @@ import {
   ExternalLink,
   Filter,
   Calendar,
-  CalendarDays,
-  History,
   SlidersHorizontal,
+  Lock,
+  UserCheck,
+  Users,
+  UserPlus,
+  ShieldAlert,
 } from 'lucide-react';
 import { ScheduleDate } from './components/ScheduleDate';
 import { Pagination5 } from './components/Pagination5';
@@ -115,9 +118,13 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(
     JSON.parse(localStorage.getItem('gate_user') || 'null')
   );
-  const [showLoginModal, setShowLoginModal] = useState(false);
-  const [loginForm, setLoginForm] = useState({ username: 'admin', password: 'AdminGatePassword2026!' });
+  const [loginForm, setLoginForm] = useState({ username: '', password: '' });
   const [loginError, setLoginError] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [showUsersModal, setShowUsersModal] = useState(false);
+  const [usersList, setUsersList] = useState([]);
+  const [newUserForm, setNewUserForm] = useState({ username: '', password: '', role: 'reviewer' });
+  const [userFormError, setUserFormError] = useState('');
 
   // Primary Navigation Tab: 'live_24h' (Front Page) vs 'archives' (Second Page)
   const [activeTab, setActiveTab] = useState('live_24h');
@@ -231,8 +238,9 @@ export default function App() {
   const handleLogin = async (e, directUser, directPass) => {
     if (e) e.preventDefault();
     setLoginError('');
-    const u = directUser || loginForm.username;
-    const p = directPass || loginForm.password;
+    setLoginLoading(true);
+    const u = (directUser || loginForm.username || '').trim();
+    const p = directPass || loginForm.password || '';
 
     try {
       const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
@@ -247,15 +255,16 @@ export default function App() {
         setCurrentUser(data.user);
         localStorage.setItem('gate_token', data.access_token);
         localStorage.setItem('gate_user', JSON.stringify(data.user));
-        setShowLoginModal(false);
-        showToast(`Officer signed in: ${data.user.username} (${data.user.role})`);
+        showToast(`Welcome, ${data.user.username} (${data.user.role.toUpperCase()})`);
         return data.access_token;
       } else {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({}));
         setLoginError(err.detail || 'Sign-in failed. Please verify credentials.');
       }
     } catch (err) {
-      setLoginError('Could not reach authentication server.');
+      setLoginError('Could not reach authentication server. Please check connection.');
+    } finally {
+      setLoginLoading(false);
     }
     return null;
   };
@@ -266,7 +275,51 @@ export default function App() {
     setCurrentUser(null);
     localStorage.removeItem('gate_token');
     localStorage.removeItem('gate_user');
+    setLoginForm({ username: '', password: '' });
     showToast('Officer signed out successfully.');
+  };
+
+  // Office Staff Management API calls (Admin only)
+  const fetchUsers = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/users`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUsersList(data);
+      }
+    } catch (e) {}
+  };
+
+  const handleCreateUser = async (e) => {
+    e.preventDefault();
+    setUserFormError('');
+    if (!newUserForm.username || !newUserForm.password) {
+      setUserFormError('Please enter both username and password.');
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(newUserForm),
+      });
+      if (res.ok) {
+        showToast(`Office account '${newUserForm.username}' created successfully.`);
+        setNewUserForm({ username: '', password: '', role: 'reviewer' });
+        fetchUsers();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setUserFormError(err.detail || 'Could not create account.');
+      }
+    } catch (err) {
+      setUserFormError('Network error while creating account.');
+    }
   };
 
   // Ping Heartbeat
@@ -300,8 +353,8 @@ export default function App() {
     try {
       const statsRes = await fetch(`${API_BASE}/api/v1/stats/today`, { headers });
       if (statsRes.status === 401) {
-        const freshToken = await handleLogin(null, 'admin', 'AdminGatePassword2026!');
-        if (freshToken) return fetchData(freshToken);
+        handleLogout();
+        return;
       } else if (statsRes.ok) {
         const statsData = await statsRes.json();
         setStats(statsData);
@@ -344,9 +397,7 @@ export default function App() {
 
   // Proactive check on mount
   useEffect(() => {
-    if (!token) {
-      handleLogin(null, 'admin', 'AdminGatePassword2026!');
-    } else {
+    if (token) {
       fetchData();
     }
   }, [token]);
@@ -408,7 +459,7 @@ export default function App() {
         if (!isUnmounted) {
           setWsConnected(false);
           if (event.code === 1008) {
-            handleLogin(null, 'admin', 'AdminGatePassword2026!');
+            handleLogout();
           } else {
             reconnectTimeoutRef.current = setTimeout(connectWebSocket, 3000);
           }
@@ -745,6 +796,103 @@ export default function App() {
     showToast(`Exported ${archiveFilteredDetections.length} archive records to CSV`);
   };
 
+  // Dedicated Lock Screen: Authorized Office Personnel Portal
+  if (!token) {
+    return (
+      <div className="gov-login-portal-backdrop">
+        <div className="gov-login-portal-card">
+          <div className="gov-login-portal-header">
+            <div className="gov-login-crest">
+              <Shield size={32} color="#FFFFFF" />
+            </div>
+            <span className="gov-login-dept">FOREST &amp; WILDLIFE SURVEILLANCE COMMAND</span>
+            <h1 className="gov-login-title">ANPR Gate Security Portal</h1>
+            <p className="gov-login-subtitle">Restricted Access • Authorized Office Personnel Only</p>
+          </div>
+
+          <form onSubmit={handleLogin} className="gov-login-portal-form">
+            {loginError && (
+              <div className="gov-login-error-alert" role="alert">
+                <AlertTriangle size={16} />
+                <span>{loginError}</span>
+              </div>
+            )}
+
+            <div className="gov-login-field">
+              <label htmlFor="login-username">Officer / Operator Username</label>
+              <div className="gov-login-input-wrap">
+                <UserCheck size={16} className="gov-login-input-icon" />
+                <input
+                  id="login-username"
+                  type="text"
+                  placeholder="Enter official username (e.g. admin)"
+                  value={loginForm.username}
+                  onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
+                  required
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            <div className="gov-login-field">
+              <label htmlFor="login-password">Secret Passkey / Password</label>
+              <div className="gov-login-input-wrap">
+                <Lock size={16} className="gov-login-input-icon" />
+                <input
+                  id="login-password"
+                  type="password"
+                  placeholder="Enter password"
+                  value={loginForm.password}
+                  onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+
+            <button type="submit" className="gov-login-submit-btn" disabled={loginLoading}>
+              {loginLoading ? (
+                <>
+                  <RefreshCw size={16} className="spin" />
+                  <span>Verifying Credentials...</span>
+                </>
+              ) : (
+                <>
+                  <LogIn size={16} />
+                  <span>Sign In to Dashboard</span>
+                </>
+              )}
+            </button>
+          </form>
+
+          <div className="gov-credentials-hint-box">
+            <div className="gov-credentials-hint-title">
+              <ShieldAlert size={13} color="var(--forest-green-700)" />
+              <span>Office Staff Roles &amp; Passkeys</span>
+            </div>
+            <div className="gov-credentials-grid">
+              <span>Admin:</span>
+              <span>admin / AdminGatePassword2026!</span>
+              <span>Officer:</span>
+              <span>reviewer / ReviewerPass2026!</span>
+              <span>Monitor:</span>
+              <span>viewer / ViewerPass2026!</span>
+            </div>
+          </div>
+
+          <div className="gov-login-footer">
+            <div className="gov-security-badge">
+              <ShieldAlert size={14} />
+              <span>Zero-Trust Gate Monitoring System</span>
+            </div>
+            <p className="gov-login-notice">
+              All sign-in attempts are timestamped and cryptographically recorded. Unauthorized access is strictly restricted to designated checkpost staff.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="gov-app-shell">
       {/* Toast Notification */}
@@ -852,23 +1000,39 @@ export default function App() {
             {isSimulating ? 'Logging...' : '+ Test Pass'}
           </button>
 
+          {currentUser?.role === 'admin' && (
+            <button
+              type="button"
+              className="btn-gov"
+              style={{ fontSize: '0.78rem', padding: '0.35rem 0.65rem' }}
+              onClick={() => {
+                setShowUsersModal(true);
+                fetchUsers();
+              }}
+              title="Manage Office Staff Logins & Passwords"
+            >
+              <Users size={13} />
+              <span>Staff Accounts</span>
+            </button>
+          )}
+
           {currentUser ? (
             <div className="gov-operator-tag">
               <div className="operator-shield-avatar">
                 {currentUser.username ? currentUser.username.slice(0, 2).toUpperCase() : 'FD'}
               </div>
-              <span className="operator-username">{currentUser.username}</span>
+              <span className="operator-username">{currentUser.username} ({currentUser.role})</span>
               <button
                 className="btn-gov-icon"
                 style={{ marginLeft: '0.2rem', padding: '0.2rem' }}
-                title="Sign out"
+                title="Sign out of portal"
                 onClick={handleLogout}
               >
                 <LogOut size={12} />
               </button>
             </div>
           ) : (
-            <button className="btn-gov primary" onClick={() => setShowLoginModal(true)}>
+            <button className="btn-gov primary" onClick={handleLogout}>
               <LogIn size={13} /> Sign In
             </button>
           )}
@@ -2157,58 +2321,128 @@ export default function App() {
       {/* ====================================================================
           MODAL: OFFICER LOGIN
           ==================================================================== */}
-      {showLoginModal && (
-        <div className="gov-modal-backdrop" onClick={() => setShowLoginModal(false)}>
-          <div className="gov-modal-box" style={{ maxWidth: '420px' }} onClick={(e) => e.stopPropagation()}>
+      {/* ====================================================================
+          MODAL: OFFICE STAFF ACCOUNT MANAGEMENT (ADMIN ONLY)
+          ==================================================================== */}
+      {showUsersModal && (
+        <div className="gov-modal-backdrop" onClick={() => setShowUsersModal(false)}>
+          <div className="gov-modal-box" style={{ maxWidth: '580px' }} onClick={(e) => e.stopPropagation()}>
             <div className="gov-modal-header">
-              <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#0F172A' }}>
-                Officer Sign-In — AVGMS Portal
-              </h3>
-              <button className="btn-gov-icon" onClick={() => setShowLoginModal(false)}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Users size={18} color="var(--forest-green-700)" />
+                <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#0F172A' }}>
+                  Office Staff Logins &amp; Access Control
+                </h3>
+              </div>
+              <button className="btn-gov-icon" onClick={() => setShowUsersModal(false)}>
                 <X size={16} />
               </button>
             </div>
-            <form onSubmit={handleLogin}>
-              <div className="gov-modal-body">
-                {loginError && (
-                  <div style={{ padding: '0.65rem', background: '#FEE2E2', color: '#DC2626', borderRadius: 'var(--radius-xs)', fontSize: '0.78rem' }}>
-                    {loginError}
+            <div className="gov-modal-body" style={{ maxHeight: '65vh', overflowY: 'auto' }}>
+              <div style={{ marginBottom: '1rem' }}>
+                <h4 style={{ fontSize: '0.8rem', fontWeight: 700, color: '#0F172A', marginBottom: '0.25rem' }}>
+                  Authorized Checkpost Accounts
+                </h4>
+                <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                  Only authorized personnel listed below can log into the ANPR portal.
+                </p>
+                <table className="gov-users-table">
+                  <thead>
+                    <tr>
+                      <th>Username</th>
+                      <th>Role</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {usersList.length === 0 ? (
+                      <tr>
+                        <td colSpan={3} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                          Loading personnel list...
+                        </td>
+                      </tr>
+                    ) : (
+                      usersList.map((u) => (
+                        <tr key={u.id}>
+                          <td style={{ fontWeight: 600 }}>{u.username}</td>
+                          <td>
+                            <span className={`gov-role-pill ${u.role}`}>{u.role}</span>
+                          </td>
+                          <td>
+                            <span style={{ color: u.active ? '#16A34A' : '#DC2626', fontWeight: 600, fontSize: '0.72rem' }}>
+                              {u.active ? '● Active' : '○ Inactive'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div style={{ borderTop: '1px solid var(--gov-border-subtle)', paddingTop: '1rem' }}>
+                <h4 style={{ fontSize: '0.8rem', fontWeight: 700, color: '#0F172A', marginBottom: '0.5rem' }}>
+                  Create New Officer Account
+                </h4>
+                {userFormError && (
+                  <div style={{ padding: '0.5rem 0.75rem', background: '#FEE2E2', color: '#DC2626', borderRadius: 'var(--radius-xs)', fontSize: '0.75rem', marginBottom: '0.65rem' }}>
+                    {userFormError}
                   </div>
                 )}
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
-                    Username
-                  </label>
-                  <input
-                    type="text"
-                    className="gov-search-input"
-                    value={loginForm.username}
-                    onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
-                    required
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
-                    Password
-                  </label>
-                  <input
-                    type="password"
-                    className="gov-search-input"
-                    value={loginForm.password}
-                    onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-                    required
-                  />
-                </div>
+                <form onSubmit={handleCreateUser} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '0.5rem', alignItems: 'end' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                      Username
+                    </label>
+                    <input
+                      type="text"
+                      className="gov-search-input"
+                      placeholder="e.g. officer_kumar"
+                      value={newUserForm.username}
+                      onChange={(e) => setNewUserForm({ ...newUserForm, username: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                      Password
+                    </label>
+                    <input
+                      type="password"
+                      className="gov-search-input"
+                      placeholder="Min 8 characters"
+                      value={newUserForm.password}
+                      onChange={(e) => setNewUserForm({ ...newUserForm, password: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                      Role
+                    </label>
+                    <select
+                      className="gov-search-input"
+                      value={newUserForm.role}
+                      onChange={(e) => setNewUserForm({ ...newUserForm, role: e.target.value })}
+                    >
+                      <option value="reviewer">Reviewer (Officer)</option>
+                      <option value="viewer">Viewer (Monitor)</option>
+                      <option value="admin">Admin (Manager)</option>
+                    </select>
+                  </div>
+                  <div style={{ gridColumn: 'span 3', display: 'flex', justifyContent: 'flex-end', marginTop: '0.25rem' }}>
+                    <button type="submit" className="btn-gov primary" style={{ fontSize: '0.78rem' }}>
+                      <UserPlus size={13} /> Add Officer Account
+                    </button>
+                  </div>
+                </form>
               </div>
-              <div className="gov-modal-footer">
-                <button type="button" className="btn-gov" onClick={() => setShowLoginModal(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn-gov primary">
-                  Sign In
-                </button>
-              </div>
-            </form>
+            </div>
+            <div className="gov-modal-footer">
+              <button type="button" className="btn-gov" onClick={() => setShowUsersModal(false)}>
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -2067,3 +2067,271 @@ body {
   border-color: #16A34A;
   background: #F0FDF4;
 }
+
+/* ==========================================================================
+   OFFICIAL RESTRICTED ACCESS LOGIN PORTAL & STAFF MANAGEMENT
+   ========================================================================== */
+
+.gov-login-portal-backdrop {
+  min-height: 100vh;
+  width: 100vw;
+  background: radial-gradient(circle at 50% 15%, #FFFFFF 0%, #F1F5F9 50%, #E2E8F0 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.gov-login-portal-backdrop::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: linear-gradient(90deg, #15803D 0%, #16A34A 50%, #D97706 100%);
+}
+
+.gov-login-portal-card {
+  width: 100%;
+  max-width: 440px;
+  background: #FFFFFF;
+  border: 1px solid var(--gov-border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 45px -10px rgba(15, 23, 42, 0.12), 0 8px 16px -4px rgba(15, 23, 42, 0.06);
+  padding: 2.25rem 2rem;
+  position: relative;
+  z-index: 10;
+}
+
+.gov-login-portal-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.gov-login-crest {
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 1rem;
+  background: linear-gradient(135deg, #15803D 0%, #14532D 100%);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(21, 128, 61, 0.25);
+  border: 2px solid #DCFCE7;
+}
+
+.gov-login-dept {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--forest-green-700);
+  text-transform: uppercase;
+  margin-bottom: 0.35rem;
+}
+
+.gov-login-title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #0F172A;
+  line-height: 1.25;
+  margin-bottom: 0.45rem;
+  letter-spacing: -0.02em;
+}
+
+.gov-login-subtitle {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.gov-login-portal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+
+.gov-login-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.gov-login-field label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #1E293B;
+  letter-spacing: 0.01em;
+}
+
+.gov-login-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.gov-login-input-icon {
+  position: absolute;
+  left: 0.85rem;
+  color: #94A3B8;
+  pointer-events: none;
+}
+
+.gov-login-input-wrap input {
+  width: 100%;
+  padding: 0.75rem 0.85rem 0.75rem 2.45rem;
+  font-size: 0.88rem;
+  font-family: inherit;
+  color: #0F172A;
+  background: #F8FAFC;
+  border: 1.5px solid var(--gov-border-default);
+  border-radius: var(--radius-sm);
+  outline: none;
+  transition: all 150ms ease;
+}
+
+.gov-login-input-wrap input:focus {
+  background: #FFFFFF;
+  border-color: #16A34A;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15);
+}
+
+.gov-login-error-alert {
+  padding: 0.75rem 0.95rem;
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  border-radius: var(--radius-sm);
+  color: #B91C1C;
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  line-height: 1.35;
+}
+
+.gov-login-submit-btn {
+  width: 100%;
+  padding: 0.82rem 1.25rem;
+  margin-top: 0.5rem;
+  background: linear-gradient(180deg, #16A34A 0%, #15803D 100%);
+  color: #FFFFFF;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  box-shadow: 0 2px 6px rgba(22, 163, 74, 0.25);
+  transition: all 140ms ease;
+}
+
+.gov-login-submit-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, #15803D 0%, #14532D 100%);
+  box-shadow: 0 4px 10px rgba(22, 163, 74, 0.35);
+  transform: translateY(-1px);
+}
+
+.gov-login-submit-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.gov-login-footer {
+  margin-top: 1.75rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--gov-border-subtle);
+  text-align: center;
+}
+
+.gov-security-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--forest-green-800);
+  background: var(--forest-green-bg);
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--radius-full);
+  margin-bottom: 0.65rem;
+}
+
+.gov-login-notice {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+/* Officer Credentials Quick Reference Box */
+.gov-credentials-hint-box {
+  margin-top: 1rem;
+  padding: 0.75rem 0.85rem;
+  background: #F8FAFC;
+  border: 1px dashed var(--gov-border-default);
+  border-radius: var(--radius-sm);
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.gov-credentials-hint-title {
+  font-weight: 700;
+  color: #0F172A;
+  margin-bottom: 0.35rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.gov-credentials-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem 0.65rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+}
+
+/* User Management Modal Styles */
+.gov-users-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  margin-top: 0.75rem;
+}
+
+.gov-users-table th {
+  background: #F8FAFC;
+  padding: 0.55rem 0.75rem;
+  text-align: left;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--gov-border-subtle);
+}
+
+.gov-users-table td {
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid var(--gov-border-subtle);
+  color: #1E293B;
+}
+
+.gov-role-pill {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-full);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.gov-role-pill.admin { background: #FEF3C7; color: #92400E; }
+.gov-role-pill.reviewer { background: #DCFCE7; color: #166534; }
+.gov-role-pill.viewer { background: #E0F2FE; color: #075985; }
+
