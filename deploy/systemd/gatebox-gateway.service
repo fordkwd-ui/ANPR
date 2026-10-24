@@ -1,0 +1,33 @@
+[Unit]
+Description=Forest Gate Monitoring — High-Speed 60 km/h Dual Camera Gateway + 24/7 HDD Recorder
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/opt/anpr
+# Production Dual-Camera Configuration:
+# - Camera A: High-Speed ANPR Camera for Number Plates (cars, bikes, scooters, trucks)
+# - Camera B: CCTV Overview Camera for Vehicle Load, Body & Make/Model Inspection
+# - 24/7 HDD Recording: Continuous rolling 10-min MP4 segments to external hard drive
+ExecStart=/opt/anpr/.venv/bin/python scripts/edge_camera_gateway.py \
+    --camera "rtsp://admin:Password123@192.168.10.10:554/Streaming/Channels/101" \
+    --cargo-camera "rtsp://admin:Password123@192.168.10.11:554/Streaming/Channels/101" \
+    --backend http://YOUR_CLOUD_SERVER:8000 \
+    --key YOUR_DEVICE_API_KEY \
+    --trap-distance 6.0 \
+    --speed-limit 60 \
+    --record \
+    --record-dir /mnt/hdd/recordings \
+    --record-segment 10 \
+    --record-min-free-gb 10
+Restart=always
+RestartSec=5
+KillMode=process
+StandardOutput=journal
+StandardError=journal
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

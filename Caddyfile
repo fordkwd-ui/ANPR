@@ -1,0 +1,51 @@
+# Caddy production reverse proxy configuration for Forest Gate Cloud Backend
+{
+    email admin@forestgate.internal
+    admin off
+}
+
+# Production domain / IP reverse proxy
+:80, :443 {
+    encode gzip zstd
+
+    # WebSocket Live Event Stream
+    @websockets {
+        header Connection *Upgrade*
+        header Upgrade websocket
+    }
+    reverse_proxy @websockets api:8000
+
+    # API endpoints & OpenAPI documentation
+    handle /api/* {
+        reverse_proxy api:8000 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    # Docs and Health
+    handle /docs* {
+        reverse_proxy api:8000
+    }
+    handle /openapi.json* {
+        reverse_proxy api:8000
+    }
+    handle /health* {
+        reverse_proxy api:8000
+    }
+
+    # Serve React SPA static files & Dashboard from api:8000
+    handle {
+        reverse_proxy api:8000
+    }
+
+    # Security headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+}

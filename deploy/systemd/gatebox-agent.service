@@ -1,0 +1,19 @@
+[Unit]
+Description=Forest Gate Monitoring — Edge Gate Box Agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/opt/anpr
+ExecStart=/opt/anpr/.venv/bin/python edge/gatebox_agent.py --port 5000 --cloud http://YOUR_CLOUD_SERVER:8000/api/v1 --key YOUR_DEVICE_API_KEY
+Restart=always
+RestartSec=5
+KillMode=process
+StandardOutput=journal
+StandardError=journal
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
