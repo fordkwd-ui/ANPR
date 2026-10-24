@@ -45,6 +45,7 @@ local_storage/
 media_storage/
 recordings/
 scratch/
+gate_captures/
 
 # Node / Frontend
 node_modules/
