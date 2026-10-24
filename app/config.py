@@ -26,15 +26,16 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
-    # Storage: "s3" or "local"
+    # Storage: "s3" (Cloudflare R2 / AWS / MinIO) or "local"
     STORAGE_DRIVER: str = "local"
     STORAGE_LOCAL_DIR: str = "./media_storage"
     S3_ENDPOINT_URL: Optional[str] = "http://localhost:9000"
     S3_ACCESS_KEY: Optional[str] = "minioadmin"
     S3_SECRET_KEY: Optional[str] = "minioadmin"
     S3_BUCKET_NAME: str = "anpr-media"
-    S3_REGION: str = "us-east-1"
-    PRESIGNED_URL_EXPIRE_SECONDS: int = 600
+    S3_REGION: str = "auto"
+    S3_PUBLIC_URL: Optional[str] = None
+    PRESIGNED_URL_EXPIRE_SECONDS: int = 3600
 
     # Gate Box Clip Tunnel URL (optional)
     CLIP_BASE_URL: Optional[str] = None

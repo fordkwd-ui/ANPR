@@ -17,5 +17,6 @@ def get_storage() -> StorageDriver:
             secret_key=settings.S3_SECRET_KEY,
             bucket_name=settings.S3_BUCKET_NAME,
             region=settings.S3_REGION,
+            public_url=settings.S3_PUBLIC_URL,
         )
     return LocalStorageDriver(base_dir=settings.STORAGE_LOCAL_DIR)

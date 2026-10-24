@@ -73,7 +73,8 @@ async def seed(session_maker=None) -> None:
             print(f"ℹ️ Gate already exists:    id={gate.id} ({gate.name})")
 
         # 5. Device with Edge API Key
-        raw_api_key = f"gate_key_{secrets.token_urlsafe(32)}"
+        import os
+        raw_api_key = os.getenv("DEVICE_API_KEY") or f"gate_key_{secrets.token_urlsafe(32)}"
         key_hash = hash_api_key(raw_api_key)
 
         device_res = await db.execute(select(Device).where(Device.gate_id == gate.id).limit(1))

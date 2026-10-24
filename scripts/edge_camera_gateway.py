@@ -33,9 +33,8 @@ except ImportError:
     print("❌ 'httpx' is required. Run: pip install httpx")
     sys.exit(1)
 
-# Default configuration
-DEFAULT_BACKEND = "http://localhost:8000"
-DEFAULT_API_KEY = "gatebox-secret-key-2026"
+DEFAULT_BACKEND = os.getenv("BACKEND_URL", "http://localhost:8000")
+DEFAULT_API_KEY = os.getenv("DEVICE_API_KEY", "gate_key_HOSkVBNJj5hl4VJOXfrTUjY-6zQPKT7yLQq4lyjRf2k")
 
 
 def generate_sample_jpeg(color: str = "green", width: int = 320, height: int = 240) -> bytes:
